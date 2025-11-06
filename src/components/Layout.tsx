@@ -142,11 +142,11 @@ export default function Layout({ children }: LayoutProps) {
         <main className="flex-1 overflow-y-auto bg-white">{children}</main>
       </div>
 
-      {/* Help Button */}
+      {/* Help Button - Hidden on mobile to avoid overlap */}
       <Button
         variant="default"
         size="icon"
-        className="fixed bottom-6 right-6 rounded-full h-12 w-12 bg-gray-700 hover:bg-gray-800 text-white shadow-lg z-30"
+        className="hidden md:flex fixed bottom-6 right-6 rounded-full h-12 w-12 bg-gray-700 hover:bg-gray-800 text-white shadow-lg z-30"
         aria-label="Help"
       >
         <HelpCircle className="h-6 w-6" />
