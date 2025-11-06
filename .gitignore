@@ -36,3 +36,6 @@ playwright/.cache/
 .env
 .env.local
 .env.*.local
+
+# Keep .env.example for reference
+!.env.example
