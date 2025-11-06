@@ -204,16 +204,32 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
   }
 
   const parseCSV = (csvText: string): BulkImportData => {
-    const lines = csvText.split('\n').filter((line) => line.trim())
+    // Handle different line endings (Windows vs Unix)
+    const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const lines = normalizedText.split('\n').filter((line) => line.trim())
+    
     if (lines.length < 2) {
       throw new Error('CSV must have at least a header row and one data row')
     }
 
-    // Detect delimiter (tab or comma)
-    const hasTabs = lines[0].includes('\t')
+    // Detect delimiter (tab or comma) - check first few lines
+    let hasTabs = false
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      if (lines[i].includes('\t')) {
+        hasTabs = true
+        break
+      }
+    }
     const delimiter = hasTabs ? '\t' : ','
 
-    const headers = lines[0].split(delimiter).map((h) => h.trim().toLowerCase())
+    // Parse header row properly (handle quoted fields)
+    const headerValues = parseCSVLine(lines[0], delimiter)
+    const headers = headerValues.map((h) => h.trim().toLowerCase())
+    
+    // Debug: log headers to console
+    console.log('CSV Headers found:', headers)
+    console.log('First data row:', parseCSVLine(lines[1] || '', delimiter))
+    
     const schools: BulkImportData['schools'] = []
     const prerequisites: BulkImportData['prerequisites'] = []
     const seen = new Set<string>()
@@ -228,6 +244,9 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
         h.includes('name') && !h.includes('school_name') && !h.includes('previous')
       )
     }
+    
+    // Debug: log which column was selected
+    console.log('Name column index:', nameIdx, headers[nameIdx] || 'NOT FOUND')
     const cityIdx = headers.findIndex((h) => h === 'city')
     const stateIdx = headers.findIndex((h) => h === 'state')
     const locationIdx = headers.findIndex((h) => h === 'location')
@@ -243,6 +262,13 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
 
     for (let i = 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i], delimiter)
+      
+      // Skip if row doesn't have enough columns
+      if (values.length < headers.length) {
+        console.warn(`Row ${i} has fewer columns than headers, skipping`)
+        continue
+      }
+      
       const row: Record<string, string> = {}
 
       headers.forEach((header, index) => {
@@ -251,7 +277,7 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
 
       // Get school name - prioritize "School Name (CAPTE)" format
       let name = ''
-      if (nameIdx >= 0 && values[nameIdx]) {
+      if (nameIdx >= 0 && nameIdx < values.length && values[nameIdx]) {
         name = values[nameIdx].trim()
       } else {
         // Try alternative column names
@@ -263,25 +289,54 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
         ).trim()
       }
 
+      // Debug first few rows
+      if (i <= 3) {
+        console.log(`Row ${i} parsed:`, {
+          name,
+          nameIdx,
+          allValues: values.slice(0, 5),
+          headers: headers.slice(0, 5)
+        })
+      }
+
       // Skip if name is empty, "nan", or too short
       if (!name || name === 'nan' || name.length < 3) continue
       
       // Skip rows that don't look like school names
       // Skip if it starts with a date pattern like "(05/2009-" or "(2004 - present)"
-      if (name.match(/^\(\d{2}\/\d{4}/) || name.match(/^\(\d{4}\s*-/)) continue
+      if (name.match(/^\(\d{2}\/\d{4}/) || name.match(/^\(\d{4}\s*-/)) {
+        console.log(`Skipping row ${i}: date pattern - ${name}`)
+        continue
+      }
       // Skip if it's just a number or address-like (starts with number followed by street name)
-      if (name.match(/^\d+\s+(Backbone|Morrow|Technology|Rd\.|Way|Drive)/i) && !name.match(/University|College|School|Institute/i)) continue
+      if (name.match(/^\d+\s+(Backbone|Morrow|Technology|Rd\.|Way|Drive|CN)/i) && !name.match(/University|College|School|Institute/i)) {
+        console.log(`Skipping row ${i}: address pattern - ${name}`)
+        continue
+      }
       // Skip if it's clearly not a school (looks like dates, accreditation info, etc.)
-      if (name.match(/^(Spring|Fall)\s+\d{4}$/i)) continue
-      if (name.match(/^Accreditation|Non-Accreditation/i)) continue
+      if (name.match(/^(Spring|Fall)\s+\d{4}$/i)) {
+        console.log(`Skipping row ${i}: date pattern - ${name}`)
+        continue
+      }
+      if (name.match(/^Accreditation|Non-Accreditation/i)) {
+        console.log(`Skipping row ${i}: accreditation status - ${name}`)
+        continue
+      }
       // Skip if it contains multiple comma-separated values that look like CSV parsing errors
-      if (name.split(',').length > 3 && !name.match(/University|College|School|Institute/i)) continue
+      // But allow if it contains school-related keywords
+      if (name.split(',').length > 3 && !name.match(/University|College|School|Institute|PT/i)) {
+        console.log(`Skipping row ${i}: multiple commas - ${name}`)
+        continue
+      }
       // Skip if it's just a location/address without school name
-      if (name.match(/^[A-Z]{2}\s+[A-Z]{2}$/) && name.length < 10) continue
-      // Require that the name contains school-related keywords (University, College, School, Institute, PT, etc.)
-      // But allow expansion campuses and other valid variations
-      if (!name.match(/University|College|School|Institute|PT|Program|Center/i) && name.length < 20) {
-        // If it's a short name without school keywords, skip it unless it's clearly a known pattern
+      if (name.match(/^[A-Z]{2}\s+[A-Z]{2}$/) && name.length < 10) {
+        console.log(`Skipping row ${i}: location code - ${name}`)
+        continue
+      }
+      // More lenient: require school-related keywords OR be at least 10 characters
+      // This allows for valid school names that might not have obvious keywords
+      if (name.length < 10 && !name.match(/University|College|School|Institute|PT|Program|Center|Academy|Medical/i)) {
+        console.log(`Skipping row ${i}: too short and no keywords - ${name}`)
         continue
       }
       
