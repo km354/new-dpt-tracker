@@ -42,6 +42,12 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [importStats, setImportStats] = useState({ schools: 0, prerequisites: 0 })
+  const [debugInfo, setDebugInfo] = useState<{
+    headers?: string[]
+    nameColumn?: string
+    sampleRows?: Array<{ name: string; allValues: string[] }>
+    skipped?: Array<{ row: number; reason: string; value: string }>
+  } | null>(null)
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -61,7 +67,7 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
         data = JSON.parse(text)
       } catch {
         // If not JSON, try CSV
-        data = parseCSV(text)
+        data = parseCSV(text, setDebugInfo)
       }
 
       if (!data.schools || !Array.isArray(data.schools)) {
@@ -195,6 +201,9 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
       setImportStats({ schools: schoolsCreated, prerequisites: prerequisitesCreated })
       setSuccess(true)
       await fetchSchools()
+      
+      // Clear debug info after successful import
+      setDebugInfo(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import data')
       console.error('Import error:', err)
@@ -203,7 +212,7 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
     }
   }
 
-  const parseCSV = (csvText: string): BulkImportData => {
+  const parseCSV = (csvText: string, setDebug: (info: typeof debugInfo | null) => void): BulkImportData => {
     // Handle different line endings (Windows vs Unix)
     const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     const lines = normalizedText.split('\n').filter((line) => line.trim())
@@ -226,13 +235,11 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
     const headerValues = parseCSVLine(lines[0], delimiter)
     const headers = headerValues.map((h) => h.trim().toLowerCase())
     
-    // Debug: log headers to console
-    console.log('CSV Headers found:', headers)
-    console.log('First data row:', parseCSVLine(lines[1] || '', delimiter))
-    
     const schools: BulkImportData['schools'] = []
     const prerequisites: BulkImportData['prerequisites'] = []
     const seen = new Set<string>()
+    const skippedRows: Array<{ row: number; reason: string; value: string }> = []
+    const sampleRows: Array<{ name: string; allValues: string[] }> = []
 
     // Find column indices for common variations
     // Prioritize columns with both "school" and "name" (like "School Name (CAPTE)")
@@ -245,8 +252,15 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
       )
     }
     
-    // Debug: log which column was selected
-    console.log('Name column index:', nameIdx, headers[nameIdx] || 'NOT FOUND')
+    const nameColumnName = nameIdx >= 0 ? headers[nameIdx] : 'NOT FOUND'
+    
+    // Store debug info for UI display
+    setDebug({
+      headers: headerValues, // Use original case
+      nameColumn: nameColumnName,
+      sampleRows: [],
+      skipped: []
+    })
     const cityIdx = headers.findIndex((h) => h === 'city')
     const stateIdx = headers.findIndex((h) => h === 'state')
     const locationIdx = headers.findIndex((h) => h === 'location')
@@ -289,54 +303,55 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
         ).trim()
       }
 
-      // Debug first few rows
-      if (i <= 3) {
-        console.log(`Row ${i} parsed:`, {
-          name,
-          nameIdx,
-          allValues: values.slice(0, 5),
-          headers: headers.slice(0, 5)
-        })
+      // Store sample rows for debugging (first 5 valid rows)
+      if (sampleRows.length < 5 && name && name.length >= 3) {
+        sampleRows.push({ name, allValues: values.slice(0, Math.min(5, values.length)) })
+        if (sampleRows.length === 5) {
+          setDebug(prev => prev ? { ...prev, sampleRows: [...sampleRows] } : null)
+        }
       }
 
       // Skip if name is empty, "nan", or too short
-      if (!name || name === 'nan' || name.length < 3) continue
+      if (!name || name === 'nan' || name.length < 3) {
+        skippedRows.push({ row: i, reason: 'Empty or too short', value: name || '(empty)' })
+        continue
+      }
       
       // Skip rows that don't look like school names
       // Skip if it starts with a date pattern like "(05/2009-" or "(2004 - present)"
       if (name.match(/^\(\d{2}\/\d{4}/) || name.match(/^\(\d{4}\s*-/)) {
-        console.log(`Skipping row ${i}: date pattern - ${name}`)
+        skippedRows.push({ row: i, reason: 'Date pattern', value: name })
         continue
       }
       // Skip if it's just a number or address-like (starts with number followed by street name)
       if (name.match(/^\d+\s+(Backbone|Morrow|Technology|Rd\.|Way|Drive|CN)/i) && !name.match(/University|College|School|Institute/i)) {
-        console.log(`Skipping row ${i}: address pattern - ${name}`)
+        skippedRows.push({ row: i, reason: 'Address pattern', value: name })
         continue
       }
       // Skip if it's clearly not a school (looks like dates, accreditation info, etc.)
       if (name.match(/^(Spring|Fall)\s+\d{4}$/i)) {
-        console.log(`Skipping row ${i}: date pattern - ${name}`)
+        skippedRows.push({ row: i, reason: 'Date pattern', value: name })
         continue
       }
       if (name.match(/^Accreditation|Non-Accreditation/i)) {
-        console.log(`Skipping row ${i}: accreditation status - ${name}`)
+        skippedRows.push({ row: i, reason: 'Accreditation status', value: name })
         continue
       }
       // Skip if it contains multiple comma-separated values that look like CSV parsing errors
       // But allow if it contains school-related keywords
       if (name.split(',').length > 3 && !name.match(/University|College|School|Institute|PT/i)) {
-        console.log(`Skipping row ${i}: multiple commas - ${name}`)
+        skippedRows.push({ row: i, reason: 'Multiple commas (parsing error?)', value: name })
         continue
       }
       // Skip if it's just a location/address without school name
       if (name.match(/^[A-Z]{2}\s+[A-Z]{2}$/) && name.length < 10) {
-        console.log(`Skipping row ${i}: location code - ${name}`)
+        skippedRows.push({ row: i, reason: 'Location code', value: name })
         continue
       }
       // More lenient: require school-related keywords OR be at least 10 characters
       // This allows for valid school names that might not have obvious keywords
       if (name.length < 10 && !name.match(/University|College|School|Institute|PT|Program|Center|Academy|Medical/i)) {
-        console.log(`Skipping row ${i}: too short and no keywords - ${name}`)
+        skippedRows.push({ row: i, reason: 'Too short and no keywords', value: name })
         continue
       }
       
@@ -394,6 +409,13 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
       })
     }
 
+    // Update debug info with final results
+    setDebug(prev => prev ? {
+      ...prev,
+      sampleRows: sampleRows.slice(0, 5),
+      skipped: skippedRows.slice(0, 20) // Show first 20 skipped rows
+    } : null)
+
     return { schools, prerequisites }
   }
 
@@ -433,6 +455,7 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
       setError(null)
       setSuccess(false)
       setImportStats({ schools: 0, prerequisites: 0 })
+      setDebugInfo(null)
       onOpenChange(false)
     }
   }
@@ -466,6 +489,49 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
                 {importStats.prerequisites > 0 &&
                   `, ${importStats.prerequisites} prerequisite${importStats.prerequisites !== 1 ? 's' : ''} imported`}
               </p>
+            </div>
+          )}
+
+          {debugInfo && (
+            <div className="bg-muted border border-gray-200 rounded-lg p-4 space-y-3 max-h-96 overflow-y-auto">
+              <p className="text-sm font-semibold">CSV Parsing Details:</p>
+              
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-1">Headers Found:</p>
+                <p className="text-xs text-gray-700">{debugInfo.headers?.join(', ') || 'None'}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-1">School Name Column:</p>
+                <p className="text-xs text-gray-700 font-mono">{debugInfo.nameColumn || 'NOT FOUND'}</p>
+              </div>
+
+              {debugInfo.sampleRows && debugInfo.sampleRows.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1">Sample Valid Rows (first 5):</p>
+                  <div className="space-y-1">
+                    {debugInfo.sampleRows.map((row, idx) => (
+                      <div key={idx} className="text-xs bg-white p-2 rounded border">
+                        <p className="font-medium">Name: {row.name}</p>
+                        <p className="text-gray-500">Columns: {row.allValues.slice(0, 3).join(', ')}...</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {debugInfo.skipped && debugInfo.skipped.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1">Skipped Rows (first 20):</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {debugInfo.skipped.map((skip, idx) => (
+                      <div key={idx} className="text-xs bg-yellow-50 p-1 rounded border border-yellow-200">
+                        <span className="font-medium">Row {skip.row}:</span> {skip.reason} - "{skip.value.substring(0, 50)}{skip.value.length > 50 ? '...' : ''}"
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
