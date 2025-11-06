@@ -27,6 +27,14 @@ const schoolSchema = z.object({
     ])
     .optional()
     .transform((val) => (val === '' ? null : val)),
+  dpt_program_url: z
+    .union([
+      z.string().url('Must be a valid URL'),
+      z.literal(''),
+      z.null(),
+    ])
+    .optional()
+    .transform((val) => (val === '' ? null : val)),
   notes: z.string().max(1000, 'Notes must be less than 1000 characters').optional().nullable(),
 })
 
@@ -53,6 +61,7 @@ export default function SchoolForm({ open, onOpenChange, school }: SchoolFormPro
       name: '',
       location: null,
       website: null,
+      dpt_program_url: null,
       notes: null,
     },
   })
@@ -64,12 +73,14 @@ export default function SchoolForm({ open, onOpenChange, school }: SchoolFormPro
         setValue('name', school.name)
         setValue('location', school.location || null)
         setValue('website', school.website || null)
+        setValue('dpt_program_url', school.dpt_program_url || null)
         setValue('notes', school.notes || null)
       } else {
         reset({
           name: '',
           location: null,
           website: null,
+          dpt_program_url: null,
           notes: null,
         })
       }
@@ -82,6 +93,7 @@ export default function SchoolForm({ open, onOpenChange, school }: SchoolFormPro
         name: data.name,
         location: data.location || null,
         website: data.website || null,
+        dpt_program_url: data.dpt_program_url || null,
         notes: data.notes || null,
       }
 
@@ -143,18 +155,36 @@ export default function SchoolForm({ open, onOpenChange, school }: SchoolFormPro
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="website">Website</Label>
+              <Label htmlFor="website">General Website</Label>
               <Input
                 id="website"
                 type="url"
                 {...register('website')}
-                placeholder="https://example.com"
+                placeholder="https://university.edu"
                 disabled={isSubmitting || loading}
                 className={errors.website ? 'border-destructive' : ''}
               />
               {errors.website && (
                 <p className="text-sm text-destructive">{errors.website.message}</p>
               )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="dpt_program_url">DPT Program Page URL</Label>
+              <Input
+                id="dpt_program_url"
+                type="url"
+                {...register('dpt_program_url')}
+                placeholder="https://university.edu/dpt-program"
+                disabled={isSubmitting || loading}
+                className={errors.dpt_program_url ? 'border-destructive' : ''}
+              />
+              {errors.dpt_program_url && (
+                <p className="text-sm text-destructive">{errors.dpt_program_url.message}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Direct link to the DPT program's admissions/requirements page
+              </p>
             </div>
 
             <div className="grid gap-2">

@@ -10,13 +10,15 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Edit, Trash2, Plus } from 'lucide-react'
+import { Edit, Trash2, Plus, ExternalLink, Upload } from 'lucide-react'
 import SchoolForm from './SchoolForm'
+import BulkImport from './BulkImport'
 import type { School } from '@/store/schools'
 
 export default function SchoolsList() {
   const { schools, loading, error, fetchSchools, deleteSchool } = useSchoolsStore()
   const [formOpen, setFormOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editingSchool, setEditingSchool] = useState<School | null>(null)
 
   useEffect(() => {
@@ -64,7 +66,11 @@ export default function SchoolsList() {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Import
+          </Button>
           <Button onClick={handleAdd}>
             <Plus className="h-4 w-4 mr-2" />
             Add School
@@ -90,6 +96,7 @@ export default function SchoolsList() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>DPT Program</TableHead>
                   <TableHead>Website</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -101,14 +108,35 @@ export default function SchoolsList() {
                     <TableCell className="font-medium">{school.name}</TableCell>
                     <TableCell>{school.location || '—'}</TableCell>
                     <TableCell>
+                      {school.dpt_program_url ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a
+                            href={school.dpt_program_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1"
+                          >
+                            View Program
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell>
                       {school.website ? (
                         <a
                           href={school.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline"
+                          className="text-primary hover:underline text-sm"
                         >
-                          {school.website}
+                          Website
                         </a>
                       ) : (
                         '—'
@@ -147,6 +175,11 @@ export default function SchoolsList() {
         open={formOpen}
         onOpenChange={handleFormClose}
         school={editingSchool}
+      />
+
+      <BulkImport
+        open={importOpen}
+        onOpenChange={setImportOpen}
       />
     </>
   )

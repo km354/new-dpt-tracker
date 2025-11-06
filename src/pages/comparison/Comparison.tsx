@@ -28,6 +28,7 @@ interface SchoolComparisonData {
   name: string
   location: string | null
   website: string | null
+  dpt_program_url: string | null
   notes: string | null
   prereqs: Array<{
     subject: string
@@ -99,6 +100,7 @@ export default function Comparison() {
           name: school.name,
           location: school.location,
           website: school.website,
+          dpt_program_url: school.dpt_program_url,
           notes: school.notes,
           prereqs: prereqsList,
           tuition: comparisonConfig.schoolData[school.id]?.tuition,

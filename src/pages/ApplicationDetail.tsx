@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ArrowLeft, Edit } from 'lucide-react'
+import { ArrowLeft, Edit, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ApplicationsList, { ApplicationsListHandle } from '@/features/applications/ApplicationsList'
 
@@ -14,6 +14,7 @@ interface ApplicationDetail {
   id: string
   school_id: string
   school_name: string
+  school_dpt_url: string | null
   status: 'planned' | 'submitted' | 'interview' | 'accepted' | 'rejected'
   app_fee: number | null
   deadline: string | null
@@ -70,10 +71,10 @@ export default function ApplicationDetail() {
           throw new Error('Application not found')
         }
 
-        // Fetch school name
+        // Fetch school name and DPT URL
         const { data: school, error: schoolError } = await supabase
           .from('schools')
-          .select('id, name')
+          .select('id, name, dpt_program_url')
           .eq('id', applicationData.school_id)
           .eq('owner_id', user!.id)
           .single()
@@ -84,6 +85,7 @@ export default function ApplicationDetail() {
           id: applicationData.id,
           school_id: applicationData.school_id,
           school_name: school?.name || 'Unknown School',
+          school_dpt_url: school?.dpt_program_url || null,
           status: applicationData.status as ApplicationDetail['status'],
           app_fee: applicationData.app_fee ? Number(applicationData.app_fee) : null,
           deadline: applicationData.deadline,
@@ -178,7 +180,7 @@ export default function ApplicationDetail() {
 
           const { data: school } = await supabase
             .from('schools')
-            .select('id, name')
+            .select('id, name, dpt_program_url')
             .eq('id', applicationData.school_id)
             .eq('owner_id', user!.id)
             .single()
@@ -187,6 +189,7 @@ export default function ApplicationDetail() {
             id: applicationData.id,
             school_id: applicationData.school_id,
             school_name: school?.name || 'Unknown School',
+            school_dpt_url: school?.dpt_program_url || null,
             status: applicationData.status as ApplicationDetail['status'],
             app_fee: applicationData.app_fee ? Number(applicationData.app_fee) : null,
             deadline: applicationData.deadline,
@@ -288,10 +291,25 @@ export default function ApplicationDetail() {
               <h1 className="text-3xl font-bold mb-2">{application.school_name}</h1>
               <p className="text-muted-foreground">Application Details</p>
             </div>
-            <Button onClick={handleEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Application
-            </Button>
+            <div className="flex gap-2">
+              {application.school_dpt_url && (
+                <Button variant="outline" asChild>
+                  <a
+                    href={application.school_dpt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    View DPT Program
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+              <Button onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Application
+              </Button>
+            </div>
           </div>
         </div>
 

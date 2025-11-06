@@ -1,0 +1,39 @@
+{
+  "schools": [
+    {
+      "name": "Example University",
+      "location": "City, State",
+      "website": "https://example.edu",
+      "dpt_program_url": "https://example.edu/dpt-program",
+      "notes": "Example notes about the program"
+    },
+    {
+      "name": "Another University",
+      "location": "Another City, State",
+      "website": "https://another.edu",
+      "dpt_program_url": "https://another.edu/physical-therapy",
+      "notes": null
+    }
+  ],
+  "prerequisites": [
+    {
+      "school_name": "Example University",
+      "subject": "Anatomy",
+      "min_grade": "B",
+      "required_credits": 3
+    },
+    {
+      "school_name": "Example University",
+      "subject": "Physiology",
+      "min_grade": "B",
+      "required_credits": 3
+    },
+    {
+      "school_name": "Another University",
+      "subject": "Biology",
+      "min_grade": "C+",
+      "required_credits": 4
+    }
+  ]
+}
+

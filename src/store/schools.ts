@@ -6,6 +6,7 @@ export interface School {
   name: string
   location: string | null
   website: string | null
+  dpt_program_url: string | null
   notes: string | null
 }
 
@@ -20,12 +21,14 @@ interface SchoolsState {
     name: string
     location?: string | null
     website?: string | null
+    dpt_program_url?: string | null
     notes?: string | null
   }) => Promise<void>
   updateSchool: (id: string, data: {
     name?: string
     location?: string | null
     website?: string | null
+    dpt_program_url?: string | null
     notes?: string | null
   }) => Promise<void>
   deleteSchool: (id: string) => Promise<void>
@@ -50,7 +53,7 @@ export const useSchoolsStore = create<SchoolsState>((set) => ({
       // Fetch schools
       const { data: schools, error: schoolsError } = await supabase
         .from('schools')
-        .select('id, name, location, website, notes')
+        .select('id, name, location, website, dpt_program_url, notes')
         .eq('owner_id', user.id)
         .order('name', { ascending: true })
 
