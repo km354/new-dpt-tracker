@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DPT Data Converter</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 40px auto; padding: 20px; }
+        textarea { width: 100%; height: 300px; font-family: monospace; font-size: 11px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px 0; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .info { background: #e7f3ff; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>DPT Schools Data Converter</h1>
+    <div class="info">
+        <strong>Instructions:</strong>
+        <ol>
+            <li>Copy your Google Sheet data (select all, copy)</li>
+            <li>Paste it in the box below</li>
+            <li>Click "Convert to JSON"</li>
+            <li>Copy the JSON output</li>
+            <li>Save it as a .json file and import via Bulk Import</li>
+        </ol>
+    </div>
+
+    <textarea id="input" placeholder="Paste your tab-separated data here..."></textarea>
+    <br>
+    <button onclick="convert()">Convert to JSON</button>
+    <button onclick="download()" id="downloadBtn" disabled>Download JSON</button>
+
+    <h2>Output:</h2>
+    <pre id="output"></pre>
+
+    <script>
+        let jsonData = null;
+
+        function convert() {
+            const input = document.getElementById('input').value.trim();
+            if (!input) {
+                alert('Please paste your data first');
+                return;
+            }
+
+            const lines = input.split('\n').filter(l => l.trim());
+            if (lines.length < 2) {
+                alert('Need at least header and one data row');
+                return;
+            }
+
+            // Parse header
+            const headers = lines[0].split('\t').map(h => h.trim());
+            
+            // Find columns
+            const nameIdx = headers.findIndex(h => h.includes('School Name') && !h.includes('CAPTE::'));
+            const cityIdx = headers.findIndex(h => h === 'City');
+            const stateIdx = headers.findIndex(h => h === 'State');
+            const ptcasIdx = headers.findIndex(h => h === 'PTCAS URL');
+            const primaryIdx = headers.findIndex(h => h === 'Primary Link');
+            const notesIdx = headers.findIndex(h => h === 'Notes');
+
+            if (nameIdx === -1) {
+                alert('Could not find School Name column');
+                return;
+            }
+
+            const schools = [];
+            const seen = new Set();
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split('\t').map(v => v.trim());
+                
+                const name = values[nameIdx] || '';
+                if (!name || name === 'nan') continue;
+                
+                // Skip duplicates
+                const key = name.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+                
+                // Location
+                const city = values[cityIdx] || '';
+                const state = values[stateIdx] || '';
+                const location = [city, state].filter(Boolean).join(', ') || null;
+                
+                // Website
+                let website = values[primaryIdx] || null;
+                if (website && website.includes('google.com/search')) {
+                    website = null;
+                }
+                
+                // DPT URL - prefer actual PTCAS URLs
+                let dptUrl = null;
+                const ptcasUrl = values[ptcasIdx] || '';
+                if (ptcasUrl.includes('ptcasdirectory.apta.org')) {
+                    dptUrl = ptcasUrl;
+                } else if (website && !website.includes('google.com')) {
+                    dptUrl = website;
+                }
+                
+                const notes = values[notesIdx] || null;
+                
+                schools.push({
+                    name: name,
+                    location: location,
+                    website: website,
+                    dpt_program_url: dptUrl,
+                    notes: notes,
+                });
+            }
+
+            jsonData = {
+                schools: schools,
+                prerequisites: []
+            };
+
+            document.getElementById('output').textContent = JSON.stringify(jsonData, null, 2);
+            document.getElementById('downloadBtn').disabled = false;
+            
+            alert(`✅ Converted ${schools.length} schools!`);
+        }
+
+        function download() {
+            if (!jsonData) {
+                alert('Please convert first');
+                return;
+            }
+
+            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dpt-schools-import.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+
