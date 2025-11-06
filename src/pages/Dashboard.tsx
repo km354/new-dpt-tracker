@@ -1,4 +1,5 @@
 import { useDashboard } from '@/hooks/useDashboard'
+import { useObservationsStore } from '@/store/observations'
 import {
   Card,
   CardContent,
@@ -7,10 +8,19 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
 import { Calendar, GraduationCap, Clock, School } from 'lucide-react'
+import { useEffect } from 'react'
 
 export default function Dashboard() {
   const { stats, loading, error } = useDashboard()
+  const { observations, fetchObservations, getTotalHours } = useObservationsStore()
+
+  useEffect(() => {
+    fetchObservations()
+  }, [fetchObservations])
+
+  const totalObservationHours = getTotalHours()
 
   if (error) {
     return (
@@ -60,12 +70,17 @@ export default function Dashboard() {
             {loading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold">
-                {stats.totalObservationHours.toFixed(1)}h
+              <div className="flex items-baseline gap-2">
+                <div className="text-2xl font-bold">
+                  {totalObservationHours.toFixed(1)}h
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {observations.filter((o) => o.verified).length} verified
+                </Badge>
               </div>
             )}
             <CardDescription className="text-xs mt-1">
-              Total verified hours
+              Total observation hours
             </CardDescription>
           </CardContent>
         </Card>

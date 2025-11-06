@@ -1,3 +1,5 @@
+import ObservationsList from './observations/ObservationsList'
+
 export default function Observations() {
   return (
     <div className="p-8">
@@ -5,6 +7,7 @@ export default function Observations() {
       <p className="text-muted-foreground mb-6">
         Track your observation hours
       </p>
+      <ObservationsList />
     </div>
   )
 }
