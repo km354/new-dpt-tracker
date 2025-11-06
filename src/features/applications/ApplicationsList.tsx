@@ -1,4 +1,5 @@
 import { useState, useImperativeHandle, forwardRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useApplications } from '@/hooks/useApplications'
 import { useSchools } from '@/hooks/useSchools'
 import { useAuth } from '@/hooks/useAuth'
@@ -37,7 +38,7 @@ const statusColors: Record<string, string> = {
 }
 
 export interface ApplicationsListHandle {
-  openAddDialog: () => void
+  openAddDialog: (applicationId?: string) => void
 }
 
 const ApplicationsList = forwardRef<ApplicationsListHandle>((_props, ref) => {
@@ -119,6 +120,8 @@ const ApplicationsList = forwardRef<ApplicationsListHandle>((_props, ref) => {
 
       await refetch()
       handleCloseDialog()
+      // Trigger a custom event to notify parent components
+      window.dispatchEvent(new CustomEvent('applicationUpdated'))
     } catch (err) {
       console.error('Error saving application:', err)
       alert(err instanceof Error ? err.message : 'Failed to save application')
@@ -141,7 +144,7 @@ const ApplicationsList = forwardRef<ApplicationsListHandle>((_props, ref) => {
   }
 
   useImperativeHandle(ref, () => ({
-    openAddDialog: () => handleOpenDialog(),
+    openAddDialog: (applicationId?: string) => handleOpenDialog(applicationId),
   }))
 
   const formatCurrency = (amount: number | null) => {
@@ -200,7 +203,12 @@ const ApplicationsList = forwardRef<ApplicationsListHandle>((_props, ref) => {
                 {applications.map((application) => (
                   <TableRow key={application.id}>
                     <TableCell className="font-medium">
-                      {application.school_name}
+                      <Link
+                        to={`/applications/${application.id}`}
+                        className="hover:underline text-primary"
+                      >
+                        {application.school_name}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Badge
