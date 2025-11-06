@@ -65,7 +65,12 @@ export function useApplications() {
 
         setApplications(applicationsWithSchools)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch applications')
+        const errorMessage = err instanceof Error 
+          ? err.message 
+          : (err && typeof err === 'object' && 'message' in err) 
+            ? String(err.message) 
+            : 'Failed to fetch applications'
+        setError(errorMessage)
         console.error('Applications fetch error:', err)
       } finally {
         setLoading(false)

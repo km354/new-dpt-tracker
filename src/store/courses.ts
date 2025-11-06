@@ -72,7 +72,11 @@ export const useCoursesStore = create<CoursesState>((set) => ({
         loading: false,
       })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch courses'
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (err && typeof err === 'object' && 'message' in err) 
+          ? String(err.message) 
+          : 'Failed to fetch courses'
       set({ error: errorMessage, loading: false })
       console.error('Courses fetch error:', err)
     }

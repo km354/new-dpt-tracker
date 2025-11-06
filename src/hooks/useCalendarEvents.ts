@@ -98,7 +98,12 @@ export function useCalendarEvents() {
 
         setEvents(calendarEvents)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch calendar events')
+        const errorMessage = err instanceof Error 
+          ? err.message 
+          : (err && typeof err === 'object' && 'message' in err) 
+            ? String(err.message) 
+            : 'Failed to fetch calendar events'
+        setError(errorMessage)
         console.error('Calendar events fetch error:', err)
       } finally {
         setLoading(false)

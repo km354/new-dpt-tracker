@@ -100,7 +100,11 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       // No applications or no schools
       set({ applications: [], loading: false })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch applications'
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (err && typeof err === 'object' && 'message' in err) 
+          ? String(err.message) 
+          : 'Failed to fetch applications'
       set({ error: errorMessage, loading: false })
       console.error('Applications fetch error:', err)
     }

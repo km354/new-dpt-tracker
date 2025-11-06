@@ -135,7 +135,12 @@ export function useDashboard() {
           overallGPA,
         })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data')
+        const errorMessage = err instanceof Error 
+          ? err.message 
+          : (err && typeof err === 'object' && 'message' in err) 
+            ? String(err.message) 
+            : 'Failed to fetch dashboard data'
+        setError(errorMessage)
         console.error('Dashboard fetch error:', err)
       } finally {
         setLoading(false)

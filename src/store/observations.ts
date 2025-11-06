@@ -77,7 +77,11 @@ export const useObservationsStore = create<ObservationsState>((set, get) => ({
         loading: false,
       })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch observations'
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (err && typeof err === 'object' && 'message' in err) 
+          ? String(err.message) 
+          : 'Failed to fetch observations'
       set({ error: errorMessage, loading: false })
       console.error('Observations fetch error:', err)
     }
