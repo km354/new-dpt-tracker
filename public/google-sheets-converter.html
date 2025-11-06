@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets to DPT Tracker JSON Converter</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .download-btn {
+            background: #28a745;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+        .instructions {
+            background: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            margin-bottom: 20px;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 5px 0;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        .file-input-wrapper {
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Google Sheets to DPT Tracker JSON Converter</h1>
+        <p class="subtitle">Convert your Google Sheets data to the import format</p>
+
+        <div class="instructions">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>In Google Sheets: File → Download → Comma-separated values (.csv)</li>
+                <li>Upload your CSV file below</li>
+                <li>Click "Convert to JSON"</li>
+                <li>Download the JSON file</li>
+                <li>Use "Bulk Import" in your DPT Tracker app</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <label for="csvFile">Upload CSV File:</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="csvFile" accept=".csv" />
+            </div>
+            
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="success" class="success" style="display: none;"></div>
+
+            <button onclick="convertCSV()">Convert to JSON</button>
+            <button id="downloadBtn" class="download-btn" onclick="downloadJSON()" disabled>Download JSON</button>
+        </div>
+
+        <div class="section">
+            <label for="jsonOutput">JSON Output:</label>
+            <textarea id="jsonOutput" placeholder="Your converted JSON will appear here..."></textarea>
+        </div>
+
+        <div class="section">
+            <h3>Expected CSV Format:</h3>
+            <p><strong>Option 1: Combined Format</strong></p>
+            <pre>name,location,website,dpt_program_url,notes,prerequisite_subject,prerequisite_min_grade,prerequisite_credits
+University Name,City State,https://university.edu,https://university.edu/dpt,,Anatomy,B,3
+University Name,City State,https://university.edu,https://university.edu/dpt,,Physiology,B,3</pre>
+
+            <p><strong>Option 2: Separate Sheets</strong></p>
+            <p>Upload schools CSV first, then prerequisites CSV, and we'll combine them.</p>
+        </div>
+    </div>
+
+    <script>
+        let jsonData = null;
+
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+                throw new Error('CSV must have at least a header row and one data row');
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+            const schools = [];
+            const prerequisites = [];
+            const schoolMap = new Map();
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+
+                // Extract school data
+                if (row.name) {
+                    const schoolKey = row.name.toLowerCase();
+                    
+                    // Only add school once
+                    if (!schoolMap.has(schoolKey)) {
+                        schools.push({
+                            name: row.name,
+                            location: row.location || null,
+                            website: row.website || null,
+                            dpt_program_url: row['dpt_program_url'] || row['dpt program url'] || null,
+                            notes: row.notes || null,
+                        });
+                        schoolMap.set(schoolKey, row.name);
+                    }
+
+                    // Extract prerequisite if present
+                    if (row['prerequisite_subject'] || row['prerequisite subject'] || row.subject) {
+                        const subject = row['prerequisite_subject'] || row['prerequisite subject'] || row.subject;
+                        if (subject) {
+                            prerequisites.push({
+                                school_name: row.name,
+                                subject: subject,
+                                min_grade: row['prerequisite_min_grade'] || row['prerequisite min grade'] || row['min_grade'] || row['min grade'] || null,
+                                required_credits: row['prerequisite_credits'] || row['prerequisite credits'] || row['required_credits'] || row['required credits']
+                                    ? parseFloat(row['prerequisite_credits'] || row['prerequisite credits'] || row['required_credits'] || row['required credits'])
+                                    : null,
+                            });
+                        }
+                    }
+                }
+            }
+
+            return { schools, prerequisites };
+        }
+
+        function convertCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            const jsonOutput = document.getElementById('jsonOutput');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                errorDiv.textContent = 'Please select a CSV file';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const data = parseCSV(text);
+                    jsonData = data;
+
+                    jsonOutput.value = JSON.stringify(data, null, 2);
+                    downloadBtn.disabled = false;
+                    successDiv.textContent = `Successfully converted! Found ${data.schools.length} schools and ${data.prerequisites.length} prerequisites.`;
+                    successDiv.style.display = 'block';
+                } catch (err) {
+                    errorDiv.textContent = 'Error: ' + err.message;
+                    errorDiv.style.display = 'block';
+                    jsonOutput.value = '';
+                    downloadBtn.disabled = true;
+                }
+            };
+
+            reader.onerror = function() {
+                errorDiv.textContent = 'Error reading file';
+                errorDiv.style.display = 'block';
+            };
+
+            reader.readAsText(file);
+        }
+
+        function downloadJSON() {
+            if (!jsonData) {
+                alert('Please convert CSV first');
+                return;
+            }
+
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dpt-schools-import.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+
