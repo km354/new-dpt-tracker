@@ -6,6 +6,7 @@ import Register from '@/pages/auth/Register'
 import Dashboard from '@/pages/Dashboard'
 import Applications from '@/pages/Applications'
 import ApplicationDetail from '@/pages/ApplicationDetail'
+import Schools from '@/pages/Schools'
 import Prerequisites from '@/pages/Prerequisites'
 import Observations from '@/pages/Observations'
 import Calendar from '@/pages/Calendar'
@@ -44,6 +45,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <ApplicationDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/schools"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Schools />
               </Layout>
             </ProtectedRoute>
           }
