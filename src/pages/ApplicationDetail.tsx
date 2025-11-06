@@ -23,6 +23,13 @@ interface ApplicationDetail {
   updated_at: string | null
 }
 
+interface Prerequisite {
+  id: string
+  subject: string
+  min_grade: string | null
+  required_credits: number | null
+}
+
 const statusColors: Record<string, string> = {
   planned: 'bg-gray-100 text-gray-800',
   submitted: 'bg-blue-100 text-blue-800',
@@ -36,6 +43,8 @@ export default function ApplicationDetail() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [application, setApplication] = useState<ApplicationDetail | null>(null)
+  const [prerequisites, setPrerequisites] = useState<Prerequisite[]>([])
+  const [prereqsLoading, setPrereqsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -84,6 +93,31 @@ export default function ApplicationDetail() {
           created_at: applicationData.created_at,
           updated_at: applicationData.updated_at,
         })
+
+        // Fetch prerequisites for this school
+        if (applicationData.school_id) {
+          setPrereqsLoading(true)
+          const { data: prereqs, error: prereqsError } = await supabase
+            .from('prereqs')
+            .select('id, subject, min_grade, required_credits')
+            .eq('school_id', applicationData.school_id)
+            .eq('owner_id', user.id)
+            .order('subject', { ascending: true })
+
+          if (prereqsError) {
+            console.error('Error fetching prerequisites:', prereqsError)
+          } else {
+            setPrerequisites(
+              prereqs?.map((p) => ({
+                id: p.id,
+                subject: p.subject,
+                min_grade: p.min_grade,
+                required_credits: p.required_credits ? Number(p.required_credits) : null,
+              })) || []
+            )
+          }
+          setPrereqsLoading(false)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch application')
         console.error('Application fetch error:', err)
@@ -162,6 +196,27 @@ export default function ApplicationDetail() {
             created_at: applicationData.created_at,
             updated_at: applicationData.updated_at,
           })
+
+          // Refetch prerequisites
+          if (applicationData.school_id) {
+            const { data: prereqs, error: prereqsError } = await supabase
+              .from('prereqs')
+              .select('id, subject, min_grade, required_credits')
+              .eq('school_id', applicationData.school_id)
+              .eq('owner_id', user.id)
+              .order('subject', { ascending: true })
+
+            if (!prereqsError && prereqs) {
+              setPrerequisites(
+                prereqs.map((p) => ({
+                  id: p.id,
+                  subject: p.subject,
+                  min_grade: p.min_grade,
+                  required_credits: p.required_credits ? Number(p.required_credits) : null,
+                }))
+              )
+            }
+          }
         } catch (err) {
           console.error('Error refetching application:', err)
         }
@@ -325,6 +380,50 @@ export default function ApplicationDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Prerequisites Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Prerequisites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {prereqsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : prerequisites.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No prerequisites listed for this school
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {prerequisites.map((prereq) => (
+                    <div
+                      key={prereq.id}
+                      className="border rounded-lg p-4 space-y-2"
+                    >
+                      <h4 className="font-medium">{prereq.subject}</h4>
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        {prereq.min_grade && (
+                          <span>
+                            Min Grade: <span className="font-medium text-foreground">{prereq.min_grade}</span>
+                          </span>
+                        )}
+                        {prereq.required_credits !== null && (
+                          <span>
+                            Credits: <span className="font-medium text-foreground">{prereq.required_credits}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Edit Dialog - Hidden but functional */}
