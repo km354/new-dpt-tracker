@@ -219,18 +219,25 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
     const seen = new Set<string>()
 
     // Find column indices for common variations
-    const nameIdx = headers.findIndex((h) => 
-      h.includes('name') && !h.includes('school_name') && !h.includes('previous')
+    // Prioritize columns with both "school" and "name" (like "School Name (CAPTE)")
+    let nameIdx = headers.findIndex((h) => 
+      h.includes('school') && h.includes('name')
     )
+    if (nameIdx === -1) {
+      nameIdx = headers.findIndex((h) => 
+        h.includes('name') && !h.includes('school_name') && !h.includes('previous')
+      )
+    }
     const cityIdx = headers.findIndex((h) => h === 'city')
     const stateIdx = headers.findIndex((h) => h === 'state')
     const locationIdx = headers.findIndex((h) => h === 'location')
     const websiteIdx = headers.findIndex((h) => 
-      h === 'website' || h === 'primary link' || h.includes('primary')
+      h === 'website' || h === 'primary link' || h.includes('primary') || h.includes('link')
     )
     const dptUrlIdx = headers.findIndex((h) => 
       (h.includes('dpt') && h.includes('url')) || 
-      h.includes('ptcas url') && !h.includes('search')
+      (h.includes('ptcas') && h.includes('url')) ||
+      h.includes('program url')
     )
     const notesIdx = headers.findIndex((h) => h === 'notes')
 
@@ -242,29 +249,57 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
         row[header] = values[index] || ''
       })
 
-      // Get school name - try multiple column formats
-      const name = 
-        (nameIdx >= 0 ? values[nameIdx] : '') ||
-        row.name ||
-        row['school name (capte)'] ||
-        row['capte::account name'] ||
-        ''
+      // Get school name - prioritize "School Name (CAPTE)" format
+      let name = ''
+      if (nameIdx >= 0 && values[nameIdx]) {
+        name = values[nameIdx].trim()
+      } else {
+        // Try alternative column names
+        name = (
+          row['school name (capte)'] ||
+          row['capte::account name'] ||
+          row.name ||
+          ''
+        ).trim()
+      }
 
-      if (!name || name.trim() === '' || name === 'nan') continue
-
+      // Skip if name is empty, "nan", or too short
+      if (!name || name === 'nan' || name.length < 3) continue
+      
+      // Skip rows that don't look like school names
+      // Skip if it starts with a date pattern like "(05/2009-" or "(2004 - present)"
+      if (name.match(/^\(\d{2}\/\d{4}/) || name.match(/^\(\d{4}\s*-/)) continue
+      // Skip if it's just a number or address-like (starts with number followed by street name)
+      if (name.match(/^\d+\s+(Backbone|Morrow|Technology|Rd\.|Way|Drive)/i) && !name.match(/University|College|School|Institute/i)) continue
+      // Skip if it's clearly not a school (looks like dates, accreditation info, etc.)
+      if (name.match(/^(Spring|Fall)\s+\d{4}$/i)) continue
+      if (name.match(/^Accreditation|Non-Accreditation/i)) continue
+      // Skip if it contains multiple comma-separated values that look like CSV parsing errors
+      if (name.split(',').length > 3 && !name.match(/University|College|School|Institute/i)) continue
+      // Skip if it's just a location/address without school name
+      if (name.match(/^[A-Z]{2}\s+[A-Z]{2}$/) && name.length < 10) continue
+      // Require that the name contains school-related keywords (University, College, School, Institute, PT, etc.)
+      // But allow expansion campuses and other valid variations
+      if (!name.match(/University|College|School|Institute|PT|Program|Center/i) && name.length < 20) {
+        // If it's a short name without school keywords, skip it unless it's clearly a known pattern
+        continue
+      }
+      
       // Skip duplicates
       const key = name.toLowerCase().trim()
       if (seen.has(key)) continue
       seen.add(key)
 
-      // Build location
+      // Build location from City and State columns
       let location: string | null = null
-      if (locationIdx >= 0 && values[locationIdx]) {
-        location = values[locationIdx]
+      if (locationIdx >= 0 && values[locationIdx] && values[locationIdx].trim()) {
+        location = values[locationIdx].trim()
       } else if (cityIdx >= 0 || stateIdx >= 0) {
-        const city = cityIdx >= 0 ? values[cityIdx] : ''
-        const state = stateIdx >= 0 ? values[stateIdx] : ''
-        location = [city, state].filter(Boolean).join(', ') || null
+        const city = (cityIdx >= 0 && values[cityIdx] ? values[cityIdx].trim() : '').trim()
+        const state = (stateIdx >= 0 && values[stateIdx] ? values[stateIdx].trim() : '').trim()
+        if (city || state) {
+          location = [city, state].filter(Boolean).join(', ') || null
+        }
       }
 
       // Get website - clean and validate
