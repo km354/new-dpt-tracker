@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, ChevronDown } from 'lucide-react'
-import { Button } from './button'
 import { cn } from '@/lib/utils'
 
 interface MultiSelectOption {

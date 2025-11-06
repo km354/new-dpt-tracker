@@ -35,7 +35,7 @@ interface CoursesState {
   reset: () => void
 }
 
-export const useCoursesStore = create<CoursesState>((set, get) => ({
+export const useCoursesStore = create<CoursesState>((set) => ({
   courses: [],
   loading: false,
   error: null,

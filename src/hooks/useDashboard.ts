@@ -40,14 +40,12 @@ export function useDashboard() {
 
         const sevenDaysFromNow = new Date()
         sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
-        const sevenDaysFromNowStr = sevenDaysFromNow.toISOString().split('T')[0]
-        const todayStr = new Date().toISOString().split('T')[0]
 
         // Fetch applications
         const { data: applications, error: appsError } = await supabase
           .from('applications')
           .select('id, status, deadline, school_id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
 
         if (appsError) throw appsError
 
@@ -57,7 +55,7 @@ export function useDashboard() {
           .from('schools')
           .select('id, name')
           .in('id', schoolIds)
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
 
         if (schoolsError) throw schoolsError
 
@@ -99,7 +97,7 @@ export function useDashboard() {
         const { data: observations, error: obsError } = await supabase
           .from('observations')
           .select('hours')
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
 
         if (obsError) throw obsError
 
@@ -110,7 +108,7 @@ export function useDashboard() {
         const { data: courses, error: coursesError } = await supabase
           .from('courses')
           .select('id, subject, grade, credits, semester, completed')
-          .eq('user_id', user.id)
+          .eq('user_id', user!.id)
           .eq('completed', true)
 
         if (coursesError) throw coursesError

@@ -29,7 +29,7 @@ export function exportToCSV<T extends Record<string, any>>(
         return ''
       }
       // Handle dates
-      if (value instanceof Date) {
+      if (value && typeof value === 'object' && value instanceof Date) {
         return value.toISOString().split('T')[0]
       }
       // Handle booleans

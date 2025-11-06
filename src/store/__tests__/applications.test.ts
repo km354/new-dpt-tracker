@@ -45,7 +45,7 @@ describe('Applications Store', () => {
         {
           id: 'app-1',
           school_id: 'school-1',
-          status: 'planned',
+          status: 'planned' as const,
           app_fee: 50,
           deadline: '2024-12-31',
           submitted_at: null,
@@ -99,7 +99,7 @@ describe('Applications Store', () => {
     it('should handle authentication error', async () => {
       vi.mocked(supabase.auth.getUser).mockResolvedValue({
         data: { user: null },
-        error: { message: 'Not authenticated' },
+        error: { message: 'Not authenticated', status: 401 } as any,
       })
 
       const store = useApplicationsStore.getState()
@@ -115,7 +115,7 @@ describe('Applications Store', () => {
       const mockApp = {
         id: 'app-new',
         school_id: 'school-1',
-        status: 'planned',
+        status: 'planned' as const,
         app_fee: 50,
         deadline: '2024-12-31',
         submitted_at: null,
@@ -176,7 +176,7 @@ describe('Applications Store', () => {
             id: 'app-1',
             school_id: 'school-1',
             school_name: 'Test University',
-            status: 'planned',
+            status: 'planned' as const,
             app_fee: 50,
             deadline: '2024-12-31',
             submitted_at: null,

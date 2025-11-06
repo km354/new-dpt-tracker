@@ -31,7 +31,7 @@ export function useApplications() {
         const { data: applicationsData, error: appsError } = await supabase
           .from('applications')
           .select('id, school_id, status, app_fee, deadline, submitted_at, notes')
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
           .order('created_at', { ascending: false })
 
         if (appsError) throw appsError
@@ -42,7 +42,7 @@ export function useApplications() {
           .from('schools')
           .select('id, name')
           .in('id', schoolIds)
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
 
         if (schoolsError) throw schoolsError
 
@@ -81,7 +81,7 @@ export function useApplications() {
     const { data: applicationsData, error: appsError } = await supabase
       .from('applications')
       .select('id, school_id, status, app_fee, deadline, submitted_at, notes')
-      .eq('owner_id', user.id)
+      .eq('owner_id', user!.id)
       .order('created_at', { ascending: false })
 
     if (appsError) {
@@ -94,7 +94,7 @@ export function useApplications() {
       .from('schools')
       .select('id, name')
       .in('id', schoolIds)
-      .eq('owner_id', user.id)
+      .eq('owner_id', user!.id)
 
     if (schoolsError) {
       setError(schoolsError.message)

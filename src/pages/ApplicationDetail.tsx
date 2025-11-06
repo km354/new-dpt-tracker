@@ -47,7 +47,6 @@ export default function ApplicationDetail() {
   const [prereqsLoading, setPrereqsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const applicationsListRef = useRef<ApplicationsListHandle | null>(null)
 
   useEffect(() => {
@@ -63,7 +62,7 @@ export default function ApplicationDetail() {
           .from('applications')
           .select('id, school_id, status, app_fee, deadline, submitted_at, notes, created_at, updated_at')
           .eq('id', id)
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
           .single()
 
         if (appError) throw appError
@@ -76,7 +75,7 @@ export default function ApplicationDetail() {
           .from('schools')
           .select('id, name')
           .eq('id', applicationData.school_id)
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
           .single()
 
         if (schoolError) throw schoolError
@@ -101,7 +100,7 @@ export default function ApplicationDetail() {
             .from('prereqs')
             .select('id, subject, min_grade, required_credits')
             .eq('school_id', applicationData.school_id)
-            .eq('owner_id', user.id)
+            .eq('owner_id', user!.id)
             .order('subject', { ascending: true })
 
           if (prereqsError) {
@@ -172,7 +171,7 @@ export default function ApplicationDetail() {
             .from('applications')
             .select('id, school_id, status, app_fee, deadline, submitted_at, notes, created_at, updated_at')
             .eq('id', id)
-            .eq('owner_id', user.id)
+            .eq('owner_id', user!.id)
             .single()
 
           if (appError || !applicationData) return
@@ -181,7 +180,7 @@ export default function ApplicationDetail() {
             .from('schools')
             .select('id, name')
             .eq('id', applicationData.school_id)
-            .eq('owner_id', user.id)
+            .eq('owner_id', user!.id)
             .single()
 
           setApplication({
@@ -203,7 +202,7 @@ export default function ApplicationDetail() {
               .from('prereqs')
               .select('id, subject, min_grade, required_credits')
               .eq('school_id', applicationData.school_id)
-              .eq('owner_id', user.id)
+              .eq('owner_id', user!.id)
               .order('subject', { ascending: true })
 
             if (!prereqsError && prereqs) {

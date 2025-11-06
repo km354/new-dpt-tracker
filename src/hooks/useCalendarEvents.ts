@@ -30,7 +30,7 @@ export function useCalendarEvents() {
         const { data: eventsData, error: eventsError } = await supabase
           .from('events')
           .select('id, title, date, type, school_id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
           .order('date', { ascending: true })
 
         if (eventsError) throw eventsError
@@ -39,7 +39,7 @@ export function useCalendarEvents() {
         const { data: applications, error: appsError } = await supabase
           .from('applications')
           .select('id, deadline, school_id')
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
           .not('deadline', 'is', null)
 
         if (appsError) throw appsError
@@ -57,7 +57,7 @@ export function useCalendarEvents() {
             .from('schools')
             .select('id, name')
             .in('id', uniqueSchoolIds)
-            .eq('owner_id', user.id)
+            .eq('owner_id', user!.id)
 
           if (schoolsError) throw schoolsError
           schoolMap = new Map(schools?.map((s) => [s.id, s.name]) || [])

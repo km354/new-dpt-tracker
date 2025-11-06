@@ -32,7 +32,7 @@ interface SchoolsState {
   reset: () => void
 }
 
-export const useSchoolsStore = create<SchoolsState>((set, get) => ({
+export const useSchoolsStore = create<SchoolsState>((set) => ({
   schools: [],
   loading: false,
   error: null,

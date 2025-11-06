@@ -26,7 +26,7 @@ export function useSchools() {
         const { data, error: schoolsError } = await supabase
           .from('schools')
           .select('id, name, location, website')
-          .eq('owner_id', user.id)
+          .eq('owner_id', user!.id)
           .order('name', { ascending: true })
 
         if (schoolsError) throw schoolsError

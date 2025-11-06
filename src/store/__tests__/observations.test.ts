@@ -1,15 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { useObservationsStore } from '../observations'
-import { supabase } from '@/lib/supabase'
-
-vi.mock('@/lib/supabase')
-
-const mockUser = { id: 'user-123', email: 'test@example.com' }
 
 describe('Observations Store', () => {
   beforeEach(() => {
     useObservationsStore.getState().reset()
-    vi.clearAllMocks()
   })
 
   describe('getTotalHours', () => {
