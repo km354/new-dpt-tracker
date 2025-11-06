@@ -29,7 +29,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Applications', path: '/applications', icon: FileText },
-  { name: 'Schools', path: '/schools', icon: Building2 },
   { name: 'Prerequisites', path: '/prerequisites', icon: BookOpen },
   { name: 'Observations', path: '/observations', icon: Clock },
   { name: 'Calendar', path: '/calendar', icon: Calendar },

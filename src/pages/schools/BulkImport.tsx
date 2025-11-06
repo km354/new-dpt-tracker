@@ -76,20 +76,72 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
       let prerequisitesCreated = 0
       const schoolNameMap = new Map<string, string>() // school_name -> school_id
 
-      // Import schools
+      // First, deduplicate schools by name (case-insensitive)
+      const uniqueSchools = new Map<string, typeof data.schools[0]>()
       for (const schoolData of data.schools) {
-        if (!schoolData.name) {
-          console.warn('Skipping school with no name:', schoolData)
+        if (!schoolData.name || schoolData.name.trim() === '') {
+          continue
+        }
+        const key = schoolData.name.trim().toLowerCase()
+        // Keep the first occurrence, or merge data if later one has more info
+        if (!uniqueSchools.has(key)) {
+          uniqueSchools.set(key, schoolData)
+        } else {
+          // Merge: prefer non-null values
+          const existing = uniqueSchools.get(key)!
+          uniqueSchools.set(key, {
+            name: schoolData.name,
+            location: schoolData.location || existing.location || null,
+            website: schoolData.website || existing.website || null,
+            dpt_program_url: schoolData.dpt_program_url || existing.dpt_program_url || null,
+            notes: schoolData.notes || existing.notes || null,
+          })
+        }
+      }
+
+      // Import unique schools
+      for (const schoolData of uniqueSchools.values()) {
+        // Check if school already exists first
+        const { data: existingSchools } = await supabase
+          .from('schools')
+          .select('id, name')
+          .eq('name', schoolData.name.trim())
+          .eq('owner_id', user.id)
+          .limit(1)
+
+        if (existingSchools && existingSchools.length > 0) {
+          // School already exists, use it
+          schoolNameMap.set(schoolData.name.trim(), existingSchools[0].id)
           continue
         }
 
+        // Clean and validate URLs
+        let website = schoolData.website || null
+        if (website && (website.includes('google.com/search') || !website.startsWith('http'))) {
+          website = null
+        }
+
+        let dptUrl = schoolData.dpt_program_url || null
+        if (dptUrl) {
+          if (dptUrl.includes('google.com/search')) {
+            dptUrl = null
+          } else if (!dptUrl.startsWith('http')) {
+            dptUrl = null
+          }
+        }
+        // If no DPT URL but we have a website, use website as fallback
+        if (!dptUrl && website) {
+          dptUrl = website
+        }
+
+        // Create new school
         const { data: school, error: schoolError } = await supabase
           .from('schools')
           .insert({
-            name: schoolData.name,
+            name: schoolData.name.trim(),
             location: schoolData.location || null,
-            website: schoolData.website || null,
-            dpt_program_url: schoolData.dpt_program_url || null,
+            website: website,
+            dpt_program_url: dptUrl,
             notes: schoolData.notes || null,
             owner_id: user.id,
           })
@@ -97,23 +149,12 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
           .single()
 
         if (schoolError) {
-          // If school already exists, try to find it
-          const { data: existingSchool } = await supabase
-            .from('schools')
-            .select('id')
-            .eq('name', schoolData.name)
-            .eq('owner_id', user.id)
-            .single()
-
-          if (existingSchool) {
-            schoolNameMap.set(schoolData.name, existingSchool.id)
-            continue
-          }
-          throw schoolError
+          console.warn('Error creating school:', schoolData.name, schoolError)
+          continue
         }
 
         if (school) {
-          schoolNameMap.set(schoolData.name, school.id)
+          schoolNameMap.set(schoolData.name.trim(), school.id)
           schoolsCreated++
         }
       }
@@ -226,23 +267,28 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
         location = [city, state].filter(Boolean).join(', ') || null
       }
 
-      // Get website
+      // Get website - clean and validate
       let website: string | null = null
       if (websiteIdx >= 0 && values[websiteIdx]) {
-        const url = values[websiteIdx]
-        if (url && !url.includes('google.com/search')) {
+        let url = values[websiteIdx].trim()
+        // Remove Google search URLs
+        if (url && !url.includes('google.com/search') && url.startsWith('http')) {
           website = url
         }
       }
 
-      // Get DPT program URL
+      // Get DPT program URL - prefer real PTCAS directory URLs
       let dptUrl: string | null = null
       if (dptUrlIdx >= 0 && values[dptUrlIdx]) {
-        const url = values[dptUrlIdx]
-        if (url.includes('ptcasdirectory.apta.org')) {
+        let url = values[dptUrlIdx].trim()
+        if (url && url.includes('ptcasdirectory.apta.org')) {
+          dptUrl = url
+        } else if (url && url.startsWith('http') && !url.includes('google.com/search')) {
+          // Use as fallback if it's a valid URL
           dptUrl = url
         }
       }
+      // If no DPT URL but we have a website, use website as fallback
       if (!dptUrl && website) {
         dptUrl = website
       }
