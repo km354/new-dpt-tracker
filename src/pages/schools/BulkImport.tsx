@@ -168,43 +168,128 @@ export default function BulkImport({ open, onOpenChange }: BulkImportProps) {
       throw new Error('CSV must have at least a header row and one data row')
     }
 
-    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
+    // Detect delimiter (tab or comma)
+    const hasTabs = lines[0].includes('\t')
+    const delimiter = hasTabs ? '\t' : ','
+
+    const headers = lines[0].split(delimiter).map((h) => h.trim().toLowerCase())
     const schools: BulkImportData['schools'] = []
     const prerequisites: BulkImportData['prerequisites'] = []
+    const seen = new Set<string>()
+
+    // Find column indices for common variations
+    const nameIdx = headers.findIndex((h) => 
+      h.includes('name') && !h.includes('school_name') && !h.includes('previous')
+    )
+    const cityIdx = headers.findIndex((h) => h === 'city')
+    const stateIdx = headers.findIndex((h) => h === 'state')
+    const locationIdx = headers.findIndex((h) => h === 'location')
+    const websiteIdx = headers.findIndex((h) => 
+      h === 'website' || h === 'primary link' || h.includes('primary')
+    )
+    const dptUrlIdx = headers.findIndex((h) => 
+      (h.includes('dpt') && h.includes('url')) || 
+      h.includes('ptcas url') && !h.includes('search')
+    )
+    const notesIdx = headers.findIndex((h) => h === 'notes')
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map((v) => v.trim())
+      const values = parseCSVLine(lines[i], delimiter)
       const row: Record<string, string> = {}
 
       headers.forEach((header, index) => {
         row[header] = values[index] || ''
       })
 
-      // School data
-      if (row.name) {
-        schools.push({
-          name: row.name,
-          location: row.location || null,
-          website: row.website || null,
-          dpt_program_url: row['dpt_program_url'] || row['dpt program url'] || null,
-          notes: row.notes || null,
-        })
+      // Get school name - try multiple column formats
+      const name = 
+        (nameIdx >= 0 ? values[nameIdx] : '') ||
+        row.name ||
+        row['school name (capte)'] ||
+        row['capte::account name'] ||
+        ''
+
+      if (!name || name.trim() === '' || name === 'nan') continue
+
+      // Skip duplicates
+      const key = name.toLowerCase().trim()
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      // Build location
+      let location: string | null = null
+      if (locationIdx >= 0 && values[locationIdx]) {
+        location = values[locationIdx]
+      } else if (cityIdx >= 0 || stateIdx >= 0) {
+        const city = cityIdx >= 0 ? values[cityIdx] : ''
+        const state = stateIdx >= 0 ? values[stateIdx] : ''
+        location = [city, state].filter(Boolean).join(', ') || null
       }
 
-      // Prerequisite data (if separate columns exist)
-      if (row.school_name && row.subject) {
-        prerequisites.push({
-          school_name: row.school_name,
-          subject: row.subject,
-          min_grade: row['min_grade'] || row['min grade'] || null,
-          required_credits: row['required_credits'] || row['required credits']
-            ? parseFloat(row['required_credits'] || row['required credits'])
-            : null,
-        })
+      // Get website
+      let website: string | null = null
+      if (websiteIdx >= 0 && values[websiteIdx]) {
+        const url = values[websiteIdx]
+        if (url && !url.includes('google.com/search')) {
+          website = url
+        }
       }
+
+      // Get DPT program URL
+      let dptUrl: string | null = null
+      if (dptUrlIdx >= 0 && values[dptUrlIdx]) {
+        const url = values[dptUrlIdx]
+        if (url.includes('ptcasdirectory.apta.org')) {
+          dptUrl = url
+        }
+      }
+      if (!dptUrl && website) {
+        dptUrl = website
+      }
+
+      const notes = notesIdx >= 0 ? values[notesIdx] : null
+
+      schools.push({
+        name: name.trim(),
+        location: location,
+        website: website,
+        dpt_program_url: dptUrl,
+        notes: notes,
+      })
     }
 
     return { schools, prerequisites }
+  }
+
+  // Parse CSV line handling quoted values
+  const parseCSVLine = (line: string, delimiter: string): string[] => {
+    const values: string[] = []
+    let current = ''
+    let inQuotes = false
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]
+      const nextChar = line[i + 1]
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          current += '"'
+          i++ // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes
+        }
+      } else if (char === delimiter && !inQuotes) {
+        values.push(current.trim())
+        current = ''
+      } else {
+        current += char
+      }
+    }
+
+    values.push(current.trim()) // Add last value
+    return values
   }
 
   const handleClose = () => {
