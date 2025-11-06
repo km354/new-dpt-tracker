@@ -25,7 +25,9 @@
     "@fullcalendar/react": "^6.1.10",
     "@fullcalendar/core": "^6.1.10",
     "@fullcalendar/daygrid": "^6.1.10",
-    "@fullcalendar/interaction": "^6.1.10"
+    "@fullcalendar/interaction": "^6.1.10",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

@@ -11,7 +11,7 @@ import Prerequisites from '@/pages/Prerequisites'
 import Observations from '@/pages/Observations'
 import Calendar from '@/pages/Calendar'
 import ComparisonPage from '@/pages/Comparison'
-import Resources from '@/pages/Resources'
+import ResourcesPage from '@/pages/Resources'
 
 function App() {
   return (
@@ -104,7 +104,7 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout>
-                <Resources />
+                <ResourcesPage />
               </Layout>
             </ProtectedRoute>
           }
