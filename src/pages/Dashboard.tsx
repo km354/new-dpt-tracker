@@ -1,5 +1,7 @@
 import { useDashboard } from '@/hooks/useDashboard'
 import { useObservationsStore } from '@/store/observations'
+import { useCalendarEvents } from '@/hooks/useCalendarEvents'
+import { useNotifications } from '@/hooks/useNotifications'
 import {
   Card,
   CardContent,
@@ -10,15 +12,94 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, GraduationCap, Clock, School } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { toast } from 'sonner'
+import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt'
 
 export default function Dashboard() {
   const { stats, loading, error } = useDashboard()
   const { observations, fetchObservations, getTotalHours } = useObservationsStore()
+  const { events } = useCalendarEvents()
+  const { showNotification } = useNotifications()
+  const notifiedEventsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     fetchObservations()
   }, [fetchObservations])
+
+  // Check for events within 3 days and show toasts
+  useEffect(() => {
+    if (!events || events.length === 0) return
+
+    const now = new Date()
+    const threeDaysFromNow = new Date()
+    threeDaysFromNow.setDate(now.getDate() + 3)
+
+    events.forEach((event) => {
+      // Skip if already notified
+      if (notifiedEventsRef.current.has(event.id)) return
+
+      const eventDate = new Date(event.date)
+      const daysUntil = Math.ceil(
+        (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      // Check if event is within 3 days
+      if (eventDate >= now && eventDate <= threeDaysFromNow && daysUntil >= 0) {
+        const eventTypeLabels = {
+          deadline: 'Deadline',
+          interview: 'Interview',
+          decision: 'Decision',
+        }
+
+        const schoolText = event.schoolName ? ` for ${event.schoolName}` : ''
+        const daysText =
+          daysUntil === 0
+            ? 'today'
+            : daysUntil === 1
+              ? 'tomorrow'
+              : `in ${daysUntil} days`
+
+        const toastTitle = `${eventTypeLabels[event.type]}${schoolText}`
+        const toastDescription = `${event.title} is ${daysText}`
+
+        // Show toast with appropriate type
+        if (event.type === 'deadline') {
+          toast.error(toastTitle, {
+            description: toastDescription,
+            duration: 5000,
+          })
+        } else if (event.type === 'interview') {
+          toast.warning(toastTitle, {
+            description: toastDescription,
+            duration: 5000,
+          })
+        } else if (event.type === 'decision') {
+          toast.success(toastTitle, {
+            description: toastDescription,
+            duration: 5000,
+          })
+        } else {
+          toast.info(toastTitle, {
+            description: toastDescription,
+            duration: 5000,
+          })
+        }
+
+        // Show browser notification if permission is granted
+        showNotification(
+          `${eventTypeLabels[event.type]}${schoolText}`,
+          {
+            body: `${event.title} is ${daysText}`,
+            tag: event.id, // Prevent duplicate notifications
+          }
+        )
+
+        // Mark as notified
+        notifiedEventsRef.current.add(event.id)
+      }
+    })
+  }, [events, showNotification])
 
   const totalObservationHours = getTotalHours()
 
@@ -37,6 +118,8 @@ export default function Dashboard() {
       <p className="text-muted-foreground mb-6">
         Overview of your DPT application progress
       </p>
+
+      <NotificationPermissionPrompt />
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
