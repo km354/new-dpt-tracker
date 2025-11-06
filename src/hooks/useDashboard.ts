@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './useAuth'
+import { calculateGPA } from '@/lib/gpa'
 
 interface DashboardStats {
   totalSchools: number
@@ -108,45 +109,24 @@ export function useDashboard() {
         // Fetch courses to calculate GPA
         const { data: courses, error: coursesError } = await supabase
           .from('courses')
-          .select('grade, credits')
+          .select('id, subject, grade, credits, semester, completed')
           .eq('user_id', user.id)
           .eq('completed', true)
 
         if (coursesError) throw coursesError
 
-        // Calculate GPA (4.0 scale)
-        // Grade mapping: A = 4.0, A- = 3.7, B+ = 3.3, B = 3.0, B- = 2.7, etc.
-        const gradePoints: Record<string, number> = {
-          'A+': 4.0,
-          'A': 4.0,
-          'A-': 3.7,
-          'B+': 3.3,
-          'B': 3.0,
-          'B-': 2.7,
-          'C+': 2.3,
-          'C': 2.0,
-          'C-': 1.7,
-          'D+': 1.3,
-          'D': 1.0,
-          'D-': 0.7,
-          'F': 0.0,
-        }
+        // Calculate GPA using the centralized function
+        const coursesForGPA =
+          courses?.map((c) => ({
+            id: c.id,
+            subject: c.subject,
+            grade: c.grade,
+            credits: c.credits ? Number(c.credits) : null,
+            semester: c.semester,
+            completed: c.completed,
+          })) || []
 
-        let totalPoints = 0
-        let totalCredits = 0
-
-        courses?.forEach((course) => {
-          const credits = Number(course.credits) || 0
-          const grade = (course.grade || '').toUpperCase().trim()
-          const points = gradePoints[grade] || 0
-
-          if (credits > 0 && points > 0) {
-            totalPoints += points * credits
-            totalCredits += credits
-          }
-        })
-
-        const overallGPA = totalCredits > 0 ? totalPoints / totalCredits : null
+        const overallGPA = calculateGPA(coursesForGPA)
 
         setStats({
           totalSchools,
