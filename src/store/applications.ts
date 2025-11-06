@@ -64,7 +64,7 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
       // Fetch schools if we have applications
       if (applicationsData && applicationsData.length > 0) {
         const schoolIds = applicationsData
-          .map((app) => app.school_id)
+          .map((app: { school_id: string }) => app.school_id)
           .filter(Boolean) as string[]
 
         if (schoolIds.length > 0) {
@@ -78,10 +78,10 @@ export const useApplicationsStore = create<ApplicationsState>((set, get) => ({
 
           // Map school names to applications
           const schoolMap = new Map(
-            schools?.map((school) => [school.id, school.name]) || []
+            schools?.map((school: { id: string; name: string }) => [school.id, school.name]) || []
           )
 
-          const applicationsWithSchools: Application[] = applicationsData.map((app) => ({
+          const applicationsWithSchools: Application[] = applicationsData.map((app: { id: string; school_id: string; status: string; app_fee: number | null; deadline: string | null; submitted_at: string | null; notes: string | null }) => ({
             id: app.id,
             school_id: app.school_id,
             school_name: schoolMap.get(app.school_id) || 'Unknown School',

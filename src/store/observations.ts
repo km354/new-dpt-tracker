@@ -65,7 +65,7 @@ export const useObservationsStore = create<ObservationsState>((set, get) => ({
 
       set({
         observations:
-          observations?.map((obs) => ({
+          observations?.map((obs: { id: string; setting: string; hours: number | string; date: string; supervisor: string | null; verified: boolean; notes: string | null }) => ({
             id: obs.id,
             setting: obs.setting,
             hours: Number(obs.hours) || 0,

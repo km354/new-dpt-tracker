@@ -50,7 +50,7 @@ export function useDashboard() {
         if (appsError) throw appsError
 
         // Fetch schools for the applications
-        const schoolIds = applications?.map((app) => app.school_id).filter(Boolean) || []
+        const schoolIds = applications?.map((app: { school_id: string }) => app.school_id).filter(Boolean) || []
         const { data: schools, error: schoolsError } = await supabase
           .from('schools')
           .select('id, name')
@@ -61,22 +61,22 @@ export function useDashboard() {
 
         // Create a map of school_id to school name
         const schoolMap = new Map(
-          schools?.map((school) => [school.id, school.name]) || []
+          schools?.map((school: { id: string; name: string }) => [school.id, school.name]) || []
         )
 
         // Calculate schools stats
         const totalSchools = applications?.length || 0
         const appliedSchools = applications?.filter(
-          (app) => app.status === 'submitted' || app.status === 'interview' || app.status === 'accepted'
+          (app: { status: string }) => app.status === 'submitted' || app.status === 'interview' || app.status === 'accepted'
         ).length || 0
         const plannedSchools = applications?.filter(
-          (app) => app.status === 'planned'
+          (app: { status: string }) => app.status === 'planned'
         ).length || 0
 
         // Get upcoming deadlines (next 7 days)
         const upcomingDeadlines =
           applications
-            ?.filter((app) => {
+            ?.filter((app: { deadline: string | null }) => {
               if (!app.deadline) return false
               const deadline = new Date(app.deadline)
               const today = new Date()
@@ -84,13 +84,13 @@ export function useDashboard() {
               sevenDays.setDate(today.getDate() + 7)
               return deadline >= today && deadline <= sevenDays
             })
-            .map((app) => ({
+            .map((app: { id: string; school_id: string; deadline: string | null; status: string }) => ({
               id: app.id,
               school_name: schoolMap.get(app.school_id) || 'Unknown School',
               deadline: app.deadline || '',
               status: app.status,
             }))
-            .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+            .sort((a: { deadline: string }, b: { deadline: string }) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
             .slice(0, 5) || [] // Limit to 5 most recent
 
         // Fetch observation hours
@@ -102,7 +102,7 @@ export function useDashboard() {
         if (obsError) throw obsError
 
         const totalObservationHours =
-          observations?.reduce((sum, obs) => sum + (Number(obs.hours) || 0), 0) || 0
+          observations?.reduce((sum: number, obs: { hours: number | string }) => sum + (Number(obs.hours) || 0), 0) || 0
 
         // Fetch courses to calculate GPA
         const { data: courses, error: coursesError } = await supabase
@@ -115,7 +115,7 @@ export function useDashboard() {
 
         // Calculate GPA using the centralized function
         const coursesForGPA =
-          courses?.map((c) => ({
+          courses?.map((c: { id: string; subject: string; grade: string | null; credits: number | null; semester: string | null; completed: boolean }) => ({
             id: c.id,
             subject: c.subject,
             grade: c.grade,

@@ -46,8 +46,8 @@ export function useCalendarEvents() {
 
         // Fetch schools for events
         const schoolIds = [
-          ...(eventsData?.map((e) => e.school_id).filter(Boolean) || []),
-          ...(applications?.map((a) => a.school_id).filter(Boolean) || []),
+          ...(eventsData?.map((e: { school_id: string | null }) => e.school_id).filter(Boolean) || []),
+          ...(applications?.map((a: { school_id: string | null }) => a.school_id).filter(Boolean) || []),
         ]
         const uniqueSchoolIds = [...new Set(schoolIds)]
 
@@ -60,14 +60,14 @@ export function useCalendarEvents() {
             .eq('owner_id', user!.id)
 
           if (schoolsError) throw schoolsError
-          schoolMap = new Map(schools?.map((s) => [s.id, s.name]) || [])
+          schoolMap = new Map(schools?.map((s: { id: string; name: string }) => [s.id, s.name]) || [])
         }
 
         // Combine events and application deadlines
         const calendarEvents: CalendarEvent[] = []
 
         // Add events from events table
-        eventsData?.forEach((event) => {
+        eventsData?.forEach((event: { id: string; title: string; date: string; type: string; school_id: string | null }) => {
           calendarEvents.push({
             id: event.id,
             title: event.title,
@@ -79,7 +79,7 @@ export function useCalendarEvents() {
         })
 
         // Add application deadlines as events
-        applications?.forEach((app) => {
+        applications?.forEach((app: { id: string; deadline: string | null; school_id: string | null }) => {
           if (app.deadline) {
             const schoolName = app.school_id
               ? schoolMap.get(app.school_id) || 'Unknown School'

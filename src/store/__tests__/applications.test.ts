@@ -74,7 +74,7 @@ describe('Applications Store', () => {
         error: null,
       })
 
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
         if (table === 'applications') {
           return {
             select: mockSelect,
@@ -136,7 +136,7 @@ describe('Applications Store', () => {
         error: null,
       })
 
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
         if (table === 'applications') {
           return {
             insert: vi.fn().mockReturnThis(),

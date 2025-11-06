@@ -61,7 +61,7 @@ export const useCoursesStore = create<CoursesState>((set) => ({
 
       set({
         courses:
-          courses?.map((c) => ({
+          courses?.map((c: { id: string; subject: string; grade: string | null; credits: number | null; semester: string | null; completed: boolean }) => ({
             id: c.id,
             subject: c.subject,
             grade: c.grade,

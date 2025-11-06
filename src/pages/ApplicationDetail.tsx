@@ -107,7 +107,7 @@ export default function ApplicationDetail() {
             console.error('Error fetching prerequisites:', prereqsError)
           } else {
             setPrerequisites(
-              prereqs?.map((p) => ({
+              prereqs?.map((p: { id: string; subject: string; min_grade: string | null; required_credits: number | null }) => ({
                 id: p.id,
                 subject: p.subject,
                 min_grade: p.min_grade,
@@ -207,7 +207,7 @@ export default function ApplicationDetail() {
 
             if (!prereqsError && prereqs) {
               setPrerequisites(
-                prereqs.map((p) => ({
+                prereqs.map((p: { id: string; subject: string; min_grade: string | null; required_credits: number | null }) => ({
                   id: p.id,
                   subject: p.subject,
                   min_grade: p.min_grade,

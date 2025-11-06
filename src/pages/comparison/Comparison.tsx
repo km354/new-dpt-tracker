@@ -78,7 +78,7 @@ export default function Comparison() {
 
       // Group prereqs by school
       const prereqsBySchool = new Map<string, typeof prereqs>()
-      prereqs?.forEach((prereq) => {
+      prereqs?.forEach((prereq: { school_id: string }) => {
         if (!prereqsBySchool.has(prereq.school_id)) {
           prereqsBySchool.set(prereq.school_id, [])
         }
@@ -88,7 +88,7 @@ export default function Comparison() {
       // Build comparison data
       const data: SchoolComparisonData[] = selectedSchools.map((school) => {
         const prereqsList =
-          prereqsBySchool.get(school.id)?.map((p) => ({
+          prereqsBySchool.get(school.id)?.map((p: { subject: string; min_grade: string | null; required_credits: number | null }) => ({
             subject: p.subject,
             min_grade: p.min_grade,
             required_credits: p.required_credits ? Number(p.required_credits) : null,
