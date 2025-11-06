@@ -28,9 +28,12 @@ export function exportToCSV<T extends Record<string, any>>(
       if (value === null || value === undefined) {
         return ''
       }
-      // Handle dates
-      if (value && typeof value === 'object' && value instanceof Date) {
-        return value.toISOString().split('T')[0]
+      // Handle dates - check if value is a Date object
+      if (value && typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]') {
+        const dateValue = value as unknown as Date
+        if (!isNaN(dateValue.getTime())) {
+          return dateValue.toISOString().split('T')[0]
+        }
       }
       // Handle booleans
       if (typeof value === 'boolean') {

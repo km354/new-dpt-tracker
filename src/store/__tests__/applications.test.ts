@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useApplicationsStore } from '../applications'
 import { supabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 
 // Mock Supabase
 vi.mock('@/lib/supabase', () => ({
@@ -21,7 +22,14 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-const mockUser = { id: 'user-123', email: 'test@example.com' }
+const mockUser: User = {
+  id: 'user-123',
+  email: 'test@example.com',
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as User
 
 describe('Applications Store', () => {
   beforeEach(() => {
