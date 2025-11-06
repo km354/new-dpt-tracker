@@ -1,0 +1,5 @@
+name,location,website,dpt_program_url,notes,prerequisite_subject,prerequisite_min_grade,prerequisite_credits
+Example University,City State,https://example.edu,https://example.edu/dpt,Notes here,Anatomy,B,3
+Example University,City State,https://example.edu,https://example.edu/dpt,Notes here,Physiology,B,3
+Another University,Another City State,https://another.edu,https://another.edu/dpt,,Biology,C+,4
+
